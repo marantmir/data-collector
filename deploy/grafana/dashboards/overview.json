@@ -1,0 +1,68 @@
+{
+  "title": "Data Collector - Visão Geral",
+  "uid": "datacollector_overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "title": "Empresas Coletadas por Fonte",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(companies_collected_total) by (source)",
+          "legendFormat": "{{source}}"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+    },
+    {
+      "title": "Taxa de Sucesso das Coletas",
+      "type": "gauge",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "1 - (sum(collection_failures_total) / (sum(companies_collected_total) + sum(collection_failures_total)))",
+          "legendFormat": "Sucesso"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+    },
+    {
+      "title": "Duração das Coletas (últimas 24h)",
+      "type": "heatmap",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(collection_duration_seconds_bucket[5m])",
+          "legendFormat": "{{le}}"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "title": "Itens no Banco por Tabela",
+      "type": "bargauge",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "items_in_db_total",
+          "legendFormat": "{{table}}"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+    },
+    {
+      "title": "Falhas Recentes",
+      "type": "logs",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "collection_failures_total > 0",
+          "legendFormat": "{{spider}} - {{error_type}}"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+    }
+  ]
+}

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Collector - Dashboard</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; }
+header { background: #1e293b; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+header h1 { font-size: 1.25rem; font-weight: 600; color: #38bdf8; }
+header .subtitle { color: #94a3b8; font-size: .85rem; }
+.container { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.card { background: #1e293b; border-radius: .75rem; padding: 1.25rem; border: 1px solid #334155; }
+.card .label { font-size: .8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+.card .value { font-size: 2rem; font-weight: 700; margin-top: .25rem; }
+.card.total .value { color: #38bdf8; }
+.card.running .value { color: #22c55e; }
+.card.completed .value { color: #a78bfa; }
+.card.failed .value { color: #ef4444; }
+.toolbar { display: flex; gap: .75rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+.toolbar select, .toolbar button { padding: .5rem 1rem; border-radius: .5rem; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; font-size: .875rem; cursor: pointer; }
+.toolbar button { background: #38bdf8; color: #0f172a; font-weight: 600; border: none; transition: opacity .2s; }
+.toolbar button:hover { opacity: .8; }
+.toolbar button.danger { background: #ef4444; }
+.toolbar .search { flex: 1; }
+.toolbar .search input { width: 100%; padding: .5rem 1rem; border-radius: .5rem; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; font-size: .875rem; }
+table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: .75rem; overflow: hidden; }
+th { text-align: left; padding: .75rem 1rem; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; border-bottom: 1px solid #334155; }
+td { padding: .75rem 1rem; border-bottom: 1px solid #1e293b; font-size: .875rem; }
+tr:hover { background: #334155; }
+.status { display: inline-flex; align-items: center; gap: .4rem; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.status-pending .status-dot { background: #f59e0b; }
+.status-running .status-dot { background: #22c55e; animation: pulse 1.5s infinite; }
+.status-completed .status-dot { background: #a78bfa; }
+.status-failed .status-dot { background: #ef4444; }
+.status-cancelled .status-dot { background: #64748b; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+.actions { display: flex; gap: .5rem; }
+.actions button { padding: .25rem .75rem; border-radius: .375rem; border: 1px solid #334155; background: transparent; color: #94a3b8; cursor: pointer; font-size: .8rem; transition: all .2s; }
+.actions button:hover { background: #334155; color: #e2e8f0; }
+.actions button.danger:hover { border-color: #ef4444; color: #ef4444; }
+.empty { text-align: center; padding: 3rem; color: #64748b; }
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.6); align-items: center; justify-content: center; z-index: 100; }
+.modal.open { display: flex; }
+.modal-content { background: #1e293b; border-radius: 1rem; padding: 2rem; width: 90%; max-width: 500px; border: 1px solid #334155; }
+.modal-content h2 { margin-bottom: 1.5rem; color: #38bdf8; }
+.modal-content label { display: block; margin-bottom: .5rem; color: #94a3b8; font-size: .875rem; }
+.modal-content input, .modal-content select { width: 100%; padding: .5rem .75rem; margin-bottom: 1rem; border-radius: .5rem; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: .875rem; }
+.modal-actions { display: flex; gap: .75rem; justify-content: flex-end; margin-top: 1rem; }
+.modal-actions button { padding: .5rem 1.25rem; border-radius: .5rem; border: none; cursor: pointer; font-weight: 600; }
+.modal-actions .cancel { background: #334155; color: #94a3b8; }
+.modal-actions .confirm { background: #38bdf8; color: #0f172a; }
+.toast { position: fixed; bottom: 2rem; right: 2rem; padding: 1rem 1.5rem; border-radius: .5rem; color: #fff; font-weight: 600; animation: slideIn .3s ease; z-index: 200; }
+.toast.success { background: #16a34a; }
+.toast.error { background: #dc2626; }
+@keyframes slideIn { from { transform: translateY(1rem); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@media (max-width: 768px) {
+  .container { padding: 1rem; }
+  .cards { grid-template-columns: 1fr 1fr; }
+  table { font-size: .8rem; }
+  th, td { padding: .5rem; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Data Collector</h1>
+    <div class="subtitle">Dashboard de Coleta de Dados</div>
+  </div>
+  <div style="display:flex;gap:.75rem;align-items:center">
+    <span id="lastUpdate" style="font-size:.8rem;color:#64748b"></span>
+    <a href="/docs" style="color:#38bdf8;font-size:.875rem;text-decoration:none">API Docs</a>
+  </div>
+</header>
+
+<div class="container">
+  <div class="cards">
+    <div class="card total"><div class="label">Total de Coletas</div><div class="value" id="statTotal">-</div></div>
+    <div class="card running"><div class="label">Em Andamento</div><div class="value" id="statRunning">-</div></div>
+    <div class="card completed"><div class="label">Concluídas</div><div class="value" id="statCompleted">-</div></div>
+    <div class="card failed"><div class="label">Falhas</div><div class="value" id="statFailed">-</div></div>
+  </div>
+
+  <div class="toolbar">
+    <select id="filterStatus" onchange="loadJobs()">
+      <option value="">Todos os status</option>
+      <option value="pending">Pendente</option>
+      <option value="running">Em Andamento</option>
+      <option value="completed">Concluído</option>
+      <option value="failed">Falha</option>
+      <option value="cancelled">Cancelado</option>
+    </select>
+    <select id="filterSpider" onchange="loadJobs()">
+      <option value="">Todos os spiders</option>
+    </select>
+    <div class="search"><input type="text" id="searchInput" placeholder="Buscar por CNPJ ou spider..." oninput="debounceSearch()"></div>
+    <button onclick="openNewJobModal()">+ Nova Coleta</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Spider</th><th>Status</th><th>Itens</th><th>Duração</th><th>Início</th><th>Ações</th></tr>
+    </thead>
+    <tbody id="jobsBody"></tbody>
+  </table>
+</div>
+
+<div class="modal" id="newJobModal">
+  <div class="modal-content">
+    <h2>Nova Coleta</h2>
+    <label>Spider</label>
+    <select id="newJobSpider"></select>
+    <label>CNPJs (opcional, um por linha)</label>
+    <input type="text" id="newJobCnpjs" placeholder="33000167000101, 00000000000191" />
+    <div class="modal-actions">
+      <button class="cancel" onclick="closeNewJobModal()">Cancelar</button>
+      <button class="confirm" onclick="createJob()">Iniciar Coleta</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let jobs = [];
+let spiders = [];
+let searchTimeout;
+
+async function api(path, opts = {}) {
+  const res = await fetch('/api/v1' + path, {
+    headers: { 'Content-Type': 'application/json', ...opts.headers },
+    ...opts,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function formatDate(d) {
+  if (!d) return '-';
+  return new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function durationStr(seconds) {
+  if (seconds == null) return '-';
+  if (seconds < 60) return Math.round(seconds) + 's';
+  if (seconds < 3600) return Math.floor(seconds / 60) + 'm ' + Math.round(seconds % 60) + 's';
+  return Math.floor(seconds / 3600) + 'h ' + Math.floor((seconds % 3600) / 60) + 'm';
+}
+
+function statusHtml(status) {
+  const labels = { pending: 'Pendente', running: 'Executando', completed: 'Concluído', failed: 'Falha', cancelled: 'Cancelado' };
+  return `<span class="status status-${status}"><span class="status-dot"></span>${labels[status] || status}</span>`;
+}
+
+function renderJobs() {
+  const tbody = document.getElementById('jobsBody');
+  if (jobs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhuma coleta encontrada</td></tr>';
+    return;
+  }
+  tbody.innerHTML = jobs.map(j => `
+    <tr>
+      <td style="font-family:monospace;font-size:.8rem;color:#64748b">${j.id.slice(0, 8)}</td>
+      <td>${j.spider_name || '-'}</td>
+      <td>${statusHtml(j.status)}</td>
+      <td>${j.items_collected || 0}</td>
+      <td>${durationStr(j.duration_seconds)}</td>
+      <td>${formatDate(j.started_at)}</td>
+      <td>
+        <div class="actions">
+          ${j.status === 'running' || j.status === 'pending' ? `<button class="danger" onclick="cancelJob('${j.id}')">Cancelar</button>` : ''}
+          ${j.status === 'completed' || j.status === 'failed' || j.status === 'cancelled' ? `<button class="danger" onclick="deleteJob('${j.id}')">Excluir</button>` : ''}
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function loadJobs() {
+  const status = document.getElementById('filterStatus').value;
+  const spider = document.getElementById('filterSpider').value;
+  const search = document.getElementById('searchInput').value.trim();
+  const params = new URLSearchParams({ limit: '100' });
+  if (status) params.set('status', status);
+  if (spider) params.set('spider', spider);
+
+  try {
+    const data = await api('/jobs?' + params.toString());
+    jobs = data.items;
+    document.getElementById('statTotal').textContent = data.total;
+    document.getElementById('statRunning').textContent = data.running;
+    document.getElementById('statCompleted').textContent = data.completed;
+    document.getElementById('statFailed').textContent = data.failed;
+    document.getElementById('lastUpdate').textContent = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+    renderJobs();
+  } catch (e) {
+    toast('Erro ao carregar jobs: ' + e.message, 'error');
+  }
+}
+
+async function loadSpiders() {
+  try {
+    spiders = await api('/jobs/spiders');
+    const sel = document.getElementById('filterSpider');
+    const sel2 = document.getElementById('newJobSpider');
+    sel.innerHTML = '<option value="">Todos os spiders</option>';
+    sel2.innerHTML = '';
+    spiders.forEach(s => {
+      sel.innerHTML += `<option value="${s.name}">${s.label}</option>`;
+      sel2.innerHTML += `<option value="${s.name}">${s.label}</option>`;
+    });
+  } catch (e) {
+    toast('Erro ao carregar spiders', 'error');
+  }
+}
+
+function debounceSearch() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(loadJobs, 300);
+}
+
+function openNewJobModal() {
+  document.getElementById('newJobModal').classList.add('open');
+}
+
+function closeNewJobModal() {
+  document.getElementById('newJobModal').classList.remove('open');
+}
+
+async function createJob() {
+  const spider = document.getElementById('newJobSpider').value;
+  const cnpjsRaw = document.getElementById('newJobCnpjs').value.trim();
+  const cnpjs = cnpjsRaw ? cnpjsRaw.split(/[,\s\n]+/).filter(Boolean) : null;
+
+  try {
+    await api('/jobs', {
+      method: 'POST',
+      body: JSON.stringify({ spider_name: spider, cnpjs }),
+    });
+    toast('Coleta iniciada com sucesso!');
+    closeNewJobModal();
+    loadJobs();
+  } catch (e) {
+    toast('Erro ao criar coleta: ' + e.message, 'error');
+  }
+}
+
+async function cancelJob(id) {
+  if (!confirm('Cancelar esta coleta?')) return;
+  try {
+    await api('/jobs/' + id + '/cancel', { method: 'POST' });
+    toast('Coleta cancelada');
+    loadJobs();
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+async function deleteJob(id) {
+  if (!confirm('Excluir esta coleta?')) return;
+  try {
+    await api('/jobs/' + id, { method: 'DELETE' });
+    toast('Coleta excluída');
+    loadJobs();
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+loadSpiders();
+loadJobs();
+setInterval(loadJobs, 10000);
+
+document.getElementById('newJobModal').addEventListener('click', function(e) {
+  if (e.target === this) closeNewJobModal();
+});
+</script>
+</body>
+</html>
