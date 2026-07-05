@@ -25,6 +25,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/metrics")
+def metrics():
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 app.include_router(companies_router, prefix="/api/v1/companies", tags=["Companies"])
 app.include_router(enrichment_router, prefix="/api/v1", tags=["Enrichment"])
 app.include_router(export_router, prefix="/api/v1/export", tags=["Export"])
@@ -33,12 +44,3 @@ app.include_router(jobs_router, prefix="/api/v1/jobs", tags=["Jobs"])
 app.include_router(procurement_router, prefix="/api/v1/procurement", tags=["Procurement"])
 app.include_router(webhooks_router, prefix="/api/v1", tags=["Webhooks"])
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
-
-@app.get("/metrics")
-def metrics():
-    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
